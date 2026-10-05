@@ -10,3 +10,4 @@ python-dotenv
 pytest
 langchain-text-splitters
 langchain-ollama
+python-multipart
