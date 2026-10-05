@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+streamlit
+chromadb
+langchain
+langchain-community
+langchain-chroma
+pypdf
+python-dotenv
+pytest
