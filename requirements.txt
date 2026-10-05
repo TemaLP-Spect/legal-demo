@@ -8,3 +8,5 @@ langchain-chroma
 pypdf
 python-dotenv
 pytest
+langchain-text-splitters
+langchain-ollama
