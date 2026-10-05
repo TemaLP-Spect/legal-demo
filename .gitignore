@@ -1,1 +1,6 @@
 .aider*
+_backup/
+chroma_db/
+data/_backup/
+__pycache__/
+*.pyc
