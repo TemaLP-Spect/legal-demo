@@ -267,7 +267,7 @@ def render_sources(sources):
         fname = s.get("filename") or s.get("source", "unknown").split("/")[-1].split("\\")[-1]
         page = s.get("page", "?")
         snippet = s.get("snippet", "")
-        label = f"Source {i} ??? {fname} ?? page {page}"
+        label = f"Source {i}  |  {fname}  |  page {page}"
         with st.expander(label, expanded=False):
             if snippet:
                 safe_snippet = html.escape(snippet)
