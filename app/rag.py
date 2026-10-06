@@ -404,7 +404,11 @@ def ask(question, language="English", use_web_fallback=False):
     sources = _build_sources(chunks)
 
     if use_web_fallback and _is_not_found(answer):
-        web_results = web_search(question)
+        try:
+            web_results = web_search(question)
+        except Exception as e:
+            print(f"[web] fallback failed: {e}")
+            web_results = []
         if web_results:
             web_context = "\n\n".join(f"[{r['title']}]({r['url']})\n{r['snippet']}" for r in web_results)
             web_prompt = ChatPromptTemplate.from_messages([("system", WEB_PROMPT), ("human", "{question}")])
