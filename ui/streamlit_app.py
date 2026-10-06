@@ -133,7 +133,6 @@ if "current_chat_id" not in st.session_state:
     st.session_state.chats[cid] = {"title": "New chat", "messages": []}
     st.session_state.current_chat_id = cid
 if "processed_files" not in st.session_state: st.session_state.processed_files = set()
-if "language" not in st.session_state: "English" = "English"
 
 # ---------- Sidebar ----------
 with st.sidebar:

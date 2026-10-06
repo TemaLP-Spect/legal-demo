@@ -14,13 +14,15 @@ EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 LLM_MODEL = "qwen2.5:1.5b"
 CHROMA_DIR = "./chroma_db"
 COLLECTION_NAME = "legal_documents"
-TOP_K = 6
+TOP_K = 4
 MIN_RELEVANCE = 0.15
 SUMMARIES_FILE = "./summaries.json"
 
 LOCAL_PROMPT = """You are a legal research assistant. You answer ONLY from the provided context.
 
 ABSOLUTE RULES (never break these):
+- If the specific clause contains placeholder text like (INSERT), [INSERT], ...dots..., or blanks, the document DOES NOT specify the answer. Say clearly: "The template contains a placeholder here. The answer is not specified in the document." DO NOT substitute numbers from other clauses.
+- If a clause you retrieve is NOT the clause that answers the question, ignore it. Only use clauses that directly answer the question.
 1. You may ONLY use information EXPLICITLY written in the context below.
 2. You may NOT use your own training knowledge. You may NOT generalise. You may NOT infer.
 3. If the context does not EXPLICITLY contain the answer, respond with exactly: NODOCS
