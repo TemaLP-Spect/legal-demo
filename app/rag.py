@@ -344,7 +344,7 @@ def ask(question, language="English", use_web_fallback=False):
 
     if _is_not_found(answer):
         result = {"answer": "The uploaded documents do not contain sufficient information to answer this query. Please consult the primary source or a qualified legal practitioner.",
-                  "sources": sources, "used_web": False, "web_sources": []}
+                  "sources": [], "used_web": False, "web_sources": []}
     else:
         result = {"answer": answer, "sources": sources, "used_web": False, "web_sources": []}
 
