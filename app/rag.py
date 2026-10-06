@@ -10,10 +10,10 @@ from langchain_core.prompts import ChatPromptTemplate
 
 OLLAMA_URL = "http://127.0.0.1:11434"
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
-LLM_MODEL = "qwen2.5-coder:1.5b"
+LLM_MODEL = "qwen2.5:7b"
 CHROMA_DIR = "./chroma_db"
 COLLECTION_NAME = "legal_documents"
-TOP_K = 2
+TOP_K = 4
 SUMMARIES_FILE = "./summaries.json"
 
 LOCAL_PROMPT = """You are a legal research assistant serving qualified legal practitioners.
@@ -56,6 +56,15 @@ Text:
 {text}
 
 Professional summary:"""
+
+SMALL_TALK_RE = re.compile(
+    r"^(how\s*(are|is)\s*(you|u|it|things|everything)|"
+    r"how'?s\s*it\s*going|what'?s\s*up|wassup|watsup|"
+    r"how\s*you\s*doing|you\s*(good|ok|okay|alright)|"
+    r"hope\s*you'?re\s*(good|well)|"
+    r"hoe\s*gaan\s*it|hoe\s*is\s*dit|"
+    r"unjani|kunjani|ku\s*njani|o\s*kae|le\s*kae|"
+    r"o\s*tsogile|le\s*tsogile|o\s*ka\s*tsoga)[\s!.,?]*$", re.I)
 
 GREETING_RE = re.compile(r"^(hi+|hey+|hello+|yo|sup|howdy|hola|greetings|hallo|hiya|heya|good\s*(day|morning|afternoon|evening)|howzit|howzat|aweh|awe|heita|yebo|yebo\s*sawubona|molo|sawubona|dumela|dumelang|thobela|goeie\s*(dag|more|middag|aand)|sharp|ja|jip|jis|cheers|morning|afternoon|evening|hallo\s*daar)[\s!.,?]*$", re.I)
 THANKS_RE = re.compile(r"^(thanks?|thank\s*you|thx|ty|ta|cheers|appreciate\s*it|much\s*appreciated|dankie|baie\s*dankie|enkosi|ngiyabonga|ngiyabonga\s*kakhulu|kea\s*leboha|re\s*a\s*leboga|ke\s*a\s*leboga)[\s!.,?]*$", re.I)
@@ -157,10 +166,40 @@ def _greeting(language="English"):
 
 _RESPONSE_CACHE = {}
 
+def _strip_greetings(text):
+    """Remove leading greeting words so 'hi, how are you' becomes 'how are you'."""
+    t = text.strip().lower()
+    # Strip common greeting prefixes
+    prefixes = ["hi", "hey", "hello", "yo", "sup", "howzit", "howzat",
+                "aweh", "awe", "heita", "yebo", "molo", "sawubona",
+                "dumela", "dumelang", "thobela", "hallo", "hiya", "heya",
+                "morning", "afternoon", "evening", "good morning",
+                "good afternoon", "good evening", "good day"]
+    changed = True
+    while changed:
+        changed = False
+        for p in prefixes:
+            if t.startswith(p):
+                rest = t[len(p):].lstrip(" ,.!-—:;?")
+                if rest:
+                    t = rest
+                    changed = True
+                    break
+    return t
+
 def _fast_reply(question, language="English"):
     q = question.strip()
+    stripped = _strip_greetings(q)
+    if stripped != q.strip().lower() and stripped:
+        # Leading greeting detected — check if the remainder is small talk
+        if SMALL_TALK_RE.match(stripped):
+            return "I am well. Thank you for asking. How may I assist you with your documents?"
+        if not stripped:
+            return _greeting(language)
     if not q:
         return _greeting(language)
+    if SMALL_TALK_RE.match(q):
+        return "I am well. Thank you for asking. How may I assist you with your documents?"
     if GREETING_RE.match(q):
         return _greeting(language)
     if THANKS_RE.match(q):
@@ -176,6 +215,14 @@ def _fast_reply(question, language="English"):
     if len(q) < 3:
         return _t(language, "short")
     return None
+
+def _has_documents():
+    try:
+        vs = get_vector_store()
+        data = vs.get()
+        return len(data.get("ids", []) or []) > 0
+    except Exception:
+        return False
 
 def get_vector_store():
     embeddings = FastEmbedEmbeddings(model_name=EMBEDDING_MODEL)
@@ -235,6 +282,12 @@ def ask(question, language="English", use_web_fallback=False):
     fast = _fast_reply(question, language)
     if fast is not None:
         return {"answer": fast, "sources": [], "used_web": False, "web_sources": []}
+
+    if not _has_documents():
+        return {
+            "answer": "No documents are currently loaded. Please upload one or more documents in the sidebar before asking a question.",
+            "sources": [], "used_web": False, "web_sources": [],
+        }
 
     cache_key = f"{language}|{question.strip().lower()}"
     if cache_key in _RESPONSE_CACHE:

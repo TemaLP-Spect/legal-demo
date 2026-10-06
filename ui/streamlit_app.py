@@ -8,9 +8,9 @@ import html
 
 API_URL = "http://127.0.0.1:8000"
 
-USER_AVATAR = "&#9878;&#65039;"
-AI_AVATAR = "&#128220;"
-GAVEL = "&#128296;"
+USER_AVATAR = "\u2696\ufe0f"
+AI_AVATAR = "\U0001F4DC"
+GAVEL = "\U0001F528"
 
 st.set_page_config(page_title="Legal Assistant", layout="centered", initial_sidebar_state="expanded")
 
