@@ -269,15 +269,17 @@ def ask(question, language="English", use_web_fallback=False):
         }
 
     # ---- Placeholder guard ----
-    # If ALL retrieved chunks contain placeholders, refuse before calling the LLM.
-    top_chunks = chunks[:3]
-    placeholder_count = sum(1 for c in top_chunks if _has_placeholder(c.page_content))
-    if placeholder_count == len(top_chunks) and len(top_chunks) > 0:
+    # If ANY of the top-2 retrieved chunks contains a placeholder, refuse.
+    # The highest-ranked chunk usually contains the clause the user asked about.
+    top_chunks = chunks[:2]
+    placeholder_hits = sum(1 for c in top_chunks if _has_placeholder(c.page_content))
+    if placeholder_hits > 0:
         sources = _build_sources(chunks)
         return {
-            "answer": "The retrieved text contains unfilled placeholders (such as \"(INSERT)\" or dotted lines). "
-                      "The specific value you asked about is NOT filled in this document. "
-                      "Please refer to the actual executed copy of the agreement, or fill in the template before relying on this answer.",
+            "answer": "The document contains unfilled placeholders (such as \"(INSERT)\" or dotted lines) in the relevant clause. "
+                      "The specific value you asked about is NOT specified in this document. "
+                      "You are likely looking at a template, not an executed agreement. "
+                      "Please refer to the signed original, or fill in the template before relying on this answer.",
             "sources": sources, "used_web": False, "web_sources": [],
         }
     context = build_context(chunks) if chunks else ""
