@@ -201,13 +201,13 @@ LANG_KEYWORDS = {
         "ngoku": 2, "nceda": 3, "ntoni": 2,
     },
     "Sesotho": {
-        "dumela": 3, "kea": 2, "leboha": 3, "ka kopo": 3, "joang": 3,
+        "kea": 2, "leboha": 3, "ka kopo": 3, "joang": 3,
         "hobaneng": 3, "mang": 2, "hape": 2, "empa": 2, "tjhe": 2,
         "ee": 2, "hona joale": 3, "ntate": 2, "ausi": 2,
         "ke": 1, "ya": 1, "ba": 1, "eng": 1,
     },
     "Setswana": {
-        "dumela": 3, "ke a leboga": 3, "tsweetswee": 3, "jang": 3,
+        "ke a leboga": 3, "tsweetswee": 3, "jang": 3,
         "goreng": 3, "mang": 2, "gape": 2, "mme": 2, "rra": 2,
         "nnyaa": 2, "ee": 2, "jaanong": 3,
         "ke": 1, "ya": 1, "ba": 1, "eng": 1,
@@ -222,19 +222,21 @@ LANG_KEYWORDS = {
 
 def detect_language(text):
     """Weighted scoring. Returns language name or None."""
-    t = " " + text.lower().strip() + " "
+    import re as _re
+    # Normalise: lowercase, strip punctuation to spaces, collapse whitespace
+    t = _re.sub(r"[^\w\s]", " ", text.lower())
+    t = " " + " ".join(t.split()) + " "
     scores = {}
     for lang, words in LANG_KEYWORDS.items():
         score = 0
         for word, weight in words.items():
-            if f" {word} " in t or t.startswith(f" {word} ") or f" {word}" == t[-len(word)-1:]:
+            if f" {word} " in t:
                 score += weight
         if score > 0:
             scores[lang] = score
     if not scores:
         return None
     best = max(scores, key=scores.get)
-    # Require minimum confidence
     return best if scores[best] >= 2 else None
 
 def _strip_greetings(text):
@@ -377,13 +379,7 @@ def ask(question, language="English", use_web_fallback=False):
         return _RESPONSE_CACHE[cache_key]
 
     vs = get_vector_store()
-    try:
-        scored = vs.similarity_search_with_relevance_scores(question, k=TOP_K)
-        chunks = [c for c, score in scored if score >= MIN_RELEVANCE]
-        top_score = max([score for _, score in scored], default=0.0)
-        print(f"[relevance] top={top_score:.3f} kept={len(chunks)}/{len(scored)}")
-    except Exception:
-        chunks = vs.similarity_search(question, k=TOP_K)
+    chunks = vs.similarity_search(question, k=TOP_K)
 
     if not chunks:
         return {
