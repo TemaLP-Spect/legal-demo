@@ -209,6 +209,21 @@ def _is_not_found(answer):
                 "not in the context", "not in your documents", "cannot find", "could not find"]
     return any(t in a for t in triggers)
 
+def _has_placeholder(text):
+    """Detect placeholder markers that mean the document doesn't specify a value."""
+    patterns = [
+        r"\(INSERT\)", r"\[INSERT\]", r"\(insert\)",
+        r"\(INSERT [A-Z ]+\)",
+        r"\.{6,}",           # ...........
+        r"_+\s*_+",          # ___ ___
+        r"\bTBD\b", r"\bTBC\b",
+    ]
+    for pat in patterns:
+        if re.search(pat, text, re.IGNORECASE):
+            return True
+    return False
+
+
 def _build_sources(chunks):
     """Return source list with filename, page, and text. Deduplicated by content hash."""
     seen = set()
@@ -251,6 +266,19 @@ def ask(question, language="English", use_web_fallback=False):
         return {
             "answer": "The uploaded documents do not contain sufficient information to answer this query. Please rephrase, upload additional documents, or consult the primary source directly.",
             "sources": [], "used_web": False, "web_sources": [],
+        }
+
+    # ---- Placeholder guard ----
+    # If ALL retrieved chunks contain placeholders, refuse before calling the LLM.
+    top_chunks = chunks[:3]
+    placeholder_count = sum(1 for c in top_chunks if _has_placeholder(c.page_content))
+    if placeholder_count == len(top_chunks) and len(top_chunks) > 0:
+        sources = _build_sources(chunks)
+        return {
+            "answer": "The retrieved text contains unfilled placeholders (such as \"(INSERT)\" or dotted lines). "
+                      "The specific value you asked about is NOT filled in this document. "
+                      "Please refer to the actual executed copy of the agreement, or fill in the template before relying on this answer.",
+            "sources": sources, "used_web": False, "web_sources": [],
         }
     context = build_context(chunks) if chunks else ""
 
