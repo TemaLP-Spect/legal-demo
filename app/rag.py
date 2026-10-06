@@ -1,6 +1,7 @@
 # app/rag.py
 import json
 import re
+import hashlib
 from datetime import datetime
 from pathlib import Path
 from langchain_community.embeddings import FastEmbedEmbeddings
@@ -14,25 +15,30 @@ LLM_MODEL = "qwen2.5:7b"
 CHROMA_DIR = "./chroma_db"
 COLLECTION_NAME = "legal_documents"
 TOP_K = 4
+MIN_RELEVANCE = 0.35
 SUMMARIES_FILE = "./summaries.json"
 
-LOCAL_PROMPT = """You are a legal research assistant serving qualified legal practitioners.
+LOCAL_PROMPT = """You are a legal research assistant. You answer ONLY from the provided context.
 
-REGISTER AND TONE (STRICT):
-- Always respond in formal, professional legal English (or the user's selected language).
-- The user may speak casually, use slang, or write informally. Do NOT mirror it.
-- Never use emojis, exclamation marks, or casual phrasing.
-- Open with a professional salutation only when greeting. Otherwise begin with the substance.
+ABSOLUTE RULES (never break these):
+1. You may ONLY use information EXPLICITLY written in the context below.
+2. You may NOT use your own training knowledge. You may NOT generalise. You may NOT infer.
+3. If the context does not EXPLICITLY contain the answer, respond with exactly: NODOCS
+4. If you are less than 100% certain the answer is in the context, respond NODOCS.
+5. Never invent citations. Never invent case law. Never invent statutes.
+6. Never answer general legal questions (court procedure, definitions, jurisdiction rules, courtroom etiquette) unless the context explicitly covers them.
 
-CONTENT STANDARDS:
-- Answer strictly from the provided context.
-- Cite source document name and page number.
-- If the context lacks the answer, respond EXACTLY: NODOCS
-- Never fabricate case law, statutes, or citations.
+Examples of NODOCS situations:
+- General questions about court procedure or courtroom rules
+- Definitions of legal terms not defined in the context
+- Questions about statutes not mentioned in the context
+- Questions about the law in general (as opposed to this specific document)
 
-STRUCTURE:
-- Short paragraphs. Formal prose.
-- Close substantive answers with: "This response should be independently verified against the primary source."
+When answering from the context:
+- Write in formal, professional legal English.
+- Cite document name and page number.
+- Begin with the substance. No filler.
+- Close with: "This response should be independently verified against the primary source."
 
 Context:
 {context}
@@ -264,17 +270,22 @@ def _is_not_found(answer):
     return any(t in a for t in triggers)
 
 def _build_sources(chunks):
-    """Return source list with filename, page, and the actual chunk text."""
+    """Return source list with filename, page, and text. Deduplicated by content hash."""
+    seen = set()
     sources = []
     for c in chunks:
         src_path = c.metadata.get("source", "unknown")
-        # Strip full path ??? keep only the filename
         filename = src_path.replace("\\", "/").split("/")[-1]
+        page = c.metadata.get("page", "?")
+        snippet = c.page_content.strip()[:800]
+        content_hash = hashlib.md5(c.page_content.strip().encode("utf-8")).hexdigest()
+        key = f"{filename}|{page}|{content_hash}"
+        if key in seen:
+            continue
+        seen.add(key)
         sources.append({
-            "source": src_path,
-            "filename": filename,
-            "page": c.metadata.get("page", "?"),
-            "snippet": c.page_content.strip()[:800],  # cap length
+            "source": src_path, "filename": filename,
+            "page": page, "snippet": snippet,
         })
     return sources
 
@@ -294,7 +305,19 @@ def ask(question, language="English", use_web_fallback=False):
         return _RESPONSE_CACHE[cache_key]
 
     vs = get_vector_store()
-    chunks = vs.similarity_search(question, k=TOP_K)
+    try:
+        scored = vs.similarity_search_with_relevance_scores(question, k=TOP_K)
+        chunks = [c for c, score in scored if score >= MIN_RELEVANCE]
+        top_score = max([score for _, score in scored], default=0.0)
+        print(f"[relevance] top={top_score:.3f} kept={len(chunks)}/{len(scored)}")
+    except Exception:
+        chunks = vs.similarity_search(question, k=TOP_K)
+
+    if not chunks:
+        return {
+            "answer": "The uploaded documents do not contain sufficient information to answer this query. Please rephrase, upload additional documents, or consult the primary source directly.",
+            "sources": [], "used_web": False, "web_sources": [],
+        }
     context = build_context(chunks) if chunks else ""
 
     system = LOCAL_PROMPT
