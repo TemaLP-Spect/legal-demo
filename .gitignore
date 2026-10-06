@@ -1,6 +1,26 @@
-.aider*
-_backup/
-chroma_db/
-data/_backup/
+# Python
 __pycache__/
 *.pyc
+*.pyo
+venv/
+
+# Project
+chroma_db/
+chroma_db_backup/
+summaries.json
+.env
+*.log
+
+# Data (client files stay private)
+data/*.pdf
+data/*.docx
+data/*.txt
+data/*.md
+data/_backup/
+
+# Aider
+.aider*
+
+# OS
+Thumbs.db
+.DS_Store
