@@ -7,7 +7,7 @@ from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_chroma import Chroma
 from app.rag import summarize_text, load_summaries, save_summaries
 
-EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
+EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
 CHROMA_DIR = "./chroma_db"

@@ -10,12 +10,12 @@ from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 
 OLLAMA_URL = "http://127.0.0.1:11434"
-EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
-LLM_MODEL = "qwen2.5:7b"
+EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+LLM_MODEL = "llama3.1:8b"
 CHROMA_DIR = "./chroma_db"
 COLLECTION_NAME = "legal_documents"
 TOP_K = 4
-MIN_RELEVANCE = 0.35
+MIN_RELEVANCE = 0.15
 SUMMARIES_FILE = "./summaries.json"
 
 LOCAL_PROMPT = """You are a legal research assistant. You answer ONLY from the provided context.
@@ -87,6 +87,7 @@ TRANSLATIONS = {
         "thanks":    "You are welcome. Please let me know if you require further assistance.",
         "bye":       "Goodbye. Please verify all information before relying on it.",
         "ack":       "Understood.",
+        "small_talk": "I am well. Thank you for asking. How may I assist you with your documents?",
         "short":     "Could you please provide further detail?",
         "about":     "I am a legal research assistant. I help practitioners locate and analyse information within the documents they have uploaded to this system.\n\nI do not provide legal advice. I do not replace the judgment of a qualified legal practitioner. Every answer must be independently verified against the primary source before reliance.\n\nI cite the documents I reference. I flag where information is absent. I do not fabricate case law, statutes, or citations.\n\nFor full details, please consult the Settings section in the sidebar.",
         "disclaimer":"Important information:\n\n1. This system is an assistive research tool. It does not constitute legal advice.\n2. Use of this system does not create an attorney-client relationship.\n3. All outputs must be independently verified.\n4. Your documents remain on your premises.\n5. This system processes personal information in accordance with POPIA.\n\nFull details in the Settings section.",
@@ -98,6 +99,7 @@ TRANSLATIONS = {
         "thanks":    "U is welkom. Laat my asseblief weet indien u verdere bystand benodig.",
         "bye":       "Totsiens. Verifieer asseblief alle inligting voordat u daarop staatmaak.",
         "ack":       "Verstaan.",
+        "small_talk": "Dit gaan goed, dankie. Hoe kan ek u behulpsaam wees met u regsdokumente?",
         "short":     "Kan u asseblief meer besonderhede verskaf?",
         "about":     "Ek is 'n regsnavorsingsassistent. Ek help praktisyns om inligting in hul opgelaaide dokumente op te spoor en te ontleed.\n\nEk verskaf nie regsadvies nie. Ek vervang nie die oordeel van 'n gekwalifiseerde regspraktisyn nie. Elke antwoord moet onafhanklik teen die primêre bron geverifieer word.\n\nEk sitateer die dokumente waarna ek verwys. Ek dui aan waar inligting ontbreek. Ek versin nie sake, statute of sitate nie.\n\nVir volle besonderhede, raadpleeg die Instellings-afdeling in die systaaf.",
         "disclaimer":"Belangrike inligting:\n\n1. Hierdie stelsel is 'n bystand-navorsingsinstrument. Dit is nie regsadvies nie.\n2. Gebruik van hierdie stelsel skep nie 'n prokureur-kliënt verhouding nie.\n3. Alle uitsette moet onafhanklik geverifieer word.\n4. U dokumente bly op u perseel.\n5. Hierdie stelsel verwerk persoonlike inligting in ooreenstemming met POPIA.\n\nVolle besonderhede in die Instellings-afdeling.",
@@ -109,6 +111,7 @@ TRANSLATIONS = {
         "thanks":    "Wamukelekile. Ngicela ungazise uma udinga usizo olwengeziwe.",
         "bye":       "Hamba kahle. Sicela uqinisekise lonke ulwazi ngaphambi kokulusebenzisa.",
         "ack":       "Ngiqonda.",
+        "small_talk": "Ngiyaphila, ngiyabonga. Ngingakusiza kanjani ngemibhalo yakho yezomthetho?",
         "short":     "Ngicela unikeze imininingwane eyengeziwe?",
         "about":     "Ngiwumsizi wocwaningo lwezomthetho. Ngisiza ochwepheshe ukuthola nokuhlaziya ulwazi emibhalweni abayilayishe.\n\nAnginikezi izeluleko zomthetho. Angigudli isahlulelo somuntu oqeqeshiwe kwezomthetho. Zonke izimpendulo kufanele ziqinisekiswe ngokuzimela.\n\nNgicaphuna imibhalo engiyisebenzisayo. Ngikhombisa lapho ulwazi lungatholakali. Angiqambi amacala, imithetho noma izicaphuno.\n\nUkuze uthole imininingwane ephelele, bheka isigaba sezilungiselelo kusihlukanisi eseceleni.",
         "disclaimer":"Ulwazi olubalulekile:\n\n1. Lolu hlelo luyithuluzi losizo locwaningo. Akusilo iseluleko somthetho.\n2. Ukusebenzisa lolu hlelo akudali ubudlelwano bommeli neklayenti.\n3. Yonke imiphumela kufanele iqinisekiswe ngokuzimela.\n4. Imibhalo yakho ihlala endaweni yakho.\n5. Lolu hlelo lucubungula ulwazi lomuntu siqu ngokuhambisana ne-POPIA.\n\nImininingwane ephelele kusigaba sezilungiselelo.",
@@ -120,6 +123,7 @@ TRANSLATIONS = {
         "thanks":    "Wamkelekile. Nceda undazise ukuba ufuna uncedo olungakumbi.",
         "bye":       "Sala kakuhle. Nceda uqinisekise lonke ulwazi phambi kokulusebenzisa.",
         "ack":       "Ndiyaqonda.",
+        "small_talk": "Ndiyaphila, enkosi. Ndingakunceda njani ngezincwadi zakho zomthetho?",
         "short":     "Nceda unike iinkcukacha ezingakumbi?",
         "about":     "Ndingumncedisi wophando lwezomthetho. Ndinceda iingcali ukufumana nokuhlalutya ulwazi kumaxwebhu eziwafakileyo.\n\nAndiniki iingcebiso zomthetho. Andithathi indawo yomgwebi oqeqeshiweyo. Zonke iimpendulo maziqinisekiswe ngokuzimeleyo.\n\nNdicaphula amaxwebhu endiwasebenzisayo. Ndibonisa apho ulwazi lungafumanekiyo. Andiqambi amatyala, imithetho okanye izicatshulwa.\n\nNgeenkcukacha ezipheleleyo, jonga icandelo leeSetingi kwicala lasekhohlo.",
         "disclaimer":"Ulwazi olubalulekileyo:\n\n1. Le nkqubo sisixhobo soncedo lophando. Ayisosicelo sengcebiso yomthetho.\n2. Ukusebenzisa le nkqubo akudali ubudlelwane begqwetha nomxhasi.\n3. Zonke iziphumo maziqinisekiswe ngokuzimeleyo.\n4. Amaxwebhu akho ahlala kwindawo yakho.\n5. Le nkqubo isebenza ngolwazi lobuqu ngokuhambelana ne-POPIA.\n\nIinkcukacha ezipheleleyo kwicandelo leeSetingi.",
@@ -131,6 +135,7 @@ TRANSLATIONS = {
         "thanks":    "O amohelehile. Ka kopo, ntsebise haeba o hloka thuso e eketsehileng.",
         "bye":       "Sala hantle. Ka kopo netefatsa tlhahisoleseding yohle pele o e sebedisa.",
         "ack":       "Ke utlwisisa.",
+        "small_talk": "Ke phela hantle, kea leboha. Nka o thusa jwang ka ditokomane tsa hao tsa molao?",
         "short":     "Ka kopo fana ka dintlha tse eketsehileng?",
         "about":     "Ke mothusi wa dipatlisiso tsa molao. Ke thusa ditsebi ho fumana le ho sekaseka tlhahisoleseding ka har'a ditokomane tseo di kentsweng.\n\nHa ke fane ka keletso ya molao. Ha ke nke sebaka sa moahlodi ya tshwanelehileng. Dikarabo tsohle di tlameha ho netefatswa ka boithaopo.\n\nKe qotsa ditokomane tseo ke di sebelisang. Ke bontsha moo tlhahisoleseding e leng siyo. Ha ke iqe mabaka, melao kapa diqotsulo.\n\nBakeng sa dintlha tse felletseng, sheba karolo ya Diseting lebopong.",
         "disclaimer":"Tlhahisoleseding ya bohlokwa:\n\n1. Sistimi ena ke sesebediswa sa thuso ya dipatlisiso. Ha se keletso ya molao.\n2. Tshebediso ya sistimi ena ha e thehe kamano ya akhente le moreki.\n3. Diphetho tsohle di tlameha ho netefatswa ka boithaopo.\n4. Ditokomane tsa hao di dula sebakeng sa hao.\n5. Sistimi ena e sebetsa tlhahisoleseding ya botho ho latela POPIA.\n\nDintlha tse felletseng karolong ya Diseting.",
@@ -142,6 +147,7 @@ TRANSLATIONS = {
         "thanks":    "O amogelesegile. Tsweetswee nkitsise fa o tlhoka thuso e e oketsegileng.",
         "bye":       "Sala sentle. Tsweetswee netefatsa tshedimosetso yotlhe pele o e dirisa.",
         "ack":       "Ke a tlhaloganya.",
+        "small_talk": "Ke tsogile sentle, ke a leboga. Nka go thusa jang ka dikwalo tsa gago tsa molao?",
         "short":     "Tsweetswee naya dintlha tse di oketsegileng?",
         "about":     "Ke mothusi wa patlisiso ya molao. Ke thusa baitseanape go bona le go sekaseka tshedimosetso mo dikwalong tse ba di tsenyileng.\n\nGa ke fe kgakololo ya molao. Ga ke tseye sebaka sa moatlhodi yo o tshwanelegileng. Dikarabo tsotlhe di tshwanetse go netefadiwa ka boithaopo.\n\nKe nopola dikwalo tse ke di dirisang. Ke supa kwa tshedimosetso e seyo. Ga ke ipe mabaka, melao kgotsa dinopolo.\n\nGo bona dintlha tse di tletseng, leba karolo ya Diseting kwa letlhakoreng.",
         "disclaimer":"Tshedimosetso ya botlhokwa:\n\n1. Sistimi eno ke sedirisiwa sa thuso ya patlisiso. Ga se kgakololo ya molao.\n2. Tiriso ya sistimi eno ga e bope kamano ya mmueledi le moreki.\n3. Diphelelo tsotlhe di tshwanetse go netefadiwa ka boithaopo.\n4. Dikwalo tsa gago di nna mo lefelong la gago.\n5. Sistimi eno e dira tshedimosetso ya botho go ya ka POPIA.\n\nDintlha tse di tletseng mo karolong ya Diseting.",
@@ -153,6 +159,7 @@ TRANSLATIONS = {
         "thanks":    "O amogetšwe. Hle ntsebiše ge o nyaka thušo ye nngwe.",
         "bye":       "Šala gabotse. Hle netefatša tshedimošo ka moka pele o e šomiša.",
         "ack":       "Ke a kwešiša.",
+        "small_talk": "Ke phela gabotse, ke a leboga. Nka go thuša bjang ka dikwalwa tša gago tša molao?",
         "short":     "Hle fa ka dintlha tše dingwe?",
         "about":     "Ke mothuši wa dinyakišišo tša molao. Ke thuša ditsebi go hwetša le go sekaseka tshedimošo ka gare ga dikwalwa tše ba di lokeleditšego.\n\nGa ke fe keletšo ya molao. Ga ke tšee sebaka sa kahlolo ya setsebi sa molao. Dikarabo ka moka di swanetše go netefatšwa ka boithaopo.\n\nKe tsopola dikwalwa tše ke di šomišago. Ke laetša mo tshedimošo e sego gona. Ga ke ipe mabaka, melao goba ditsopotlo.\n\nGo bona dintlha ka botlalo, lebelela karolo ya Diseting ka lehlakoreng.",
         "disclaimer":"Tshedimošo ya bohlokwa:\n\n1. Sisteme ye ke sedirišwa sa thušo ya dinyakišišo. Ga se keletšo ya molao.\n2. Tirišo ya sisteme ye ga e hlole kamano ya mmueledi le moreki.\n3. Diphetho ka moka di swanetše go netefatšwa ka boithaopo.\n4. Dikwalwa tša gago di dula lefelong la gago.\n5. Sisteme ye e šoma tshedimošo ya motho ka go latela POPIA.\n\nDintlha ka botlalo karolong ya Diseting.",
@@ -171,6 +178,64 @@ def _greeting(language="English"):
     return _t(language, "evening")
 
 _RESPONSE_CACHE = {}
+
+LANG_KEYWORDS = {
+    # Long distinctive words weight 3, short ambiguous words weight 1
+    "Afrikaans": {
+        "hallo": 3, "goeie": 3, "dankie": 3, "asseblief": 3, "kennisgewing": 3,
+        "beëindiging": 3, "kontrak": 2, "huurkontrak": 3, "dokument": 2,
+        "die": 1, "van": 1, "vir": 1, "wat": 1, "hoe": 1, "waarom": 1,
+        "nie": 1, "is": 1, "ek": 1, "jy": 1, "ons": 1, "julle": 1,
+        "hierdie": 2, "daardie": 2, "waar": 1,
+    },
+    "isiZulu": {
+        "sawubona": 3, "ngiyabonga": 3, "ngicela": 3, "ngiyaphila": 3,
+        "unjani": 3, "kanjani": 2, "kungani": 2, "ngubani": 3,
+        "yebo": 2, "cha": 2, "ngi": 1, "uku": 1, "aba": 1, "futhi": 2,
+        "kodwa": 2, "manje": 2, "kuhle": 2, "yini": 2,
+    },
+    "isiXhosa": {
+        "molo": 3, "enkosi": 3, "ndicela": 3, "ndiphilile": 3,
+        "unjani": 3, "kutheni": 3, "ngubani": 3, "kwaye": 2,
+        "ewe": 2, "hayi": 2, "ndi": 1, "uku": 1, "aba": 1, "kodwa": 2,
+        "ngoku": 2, "nceda": 3, "ntoni": 2,
+    },
+    "Sesotho": {
+        "dumela": 3, "kea": 2, "leboha": 3, "ka kopo": 3, "joang": 3,
+        "hobaneng": 3, "mang": 2, "hape": 2, "empa": 2, "tjhe": 2,
+        "ee": 2, "hona joale": 3, "ntate": 2, "ausi": 2,
+        "ke": 1, "ya": 1, "ba": 1, "eng": 1,
+    },
+    "Setswana": {
+        "dumela": 3, "ke a leboga": 3, "tsweetswee": 3, "jang": 3,
+        "goreng": 3, "mang": 2, "gape": 2, "mme": 2, "rra": 2,
+        "nnyaa": 2, "ee": 2, "jaanong": 3,
+        "ke": 1, "ya": 1, "ba": 1, "eng": 1,
+    },
+    "Sepedi": {
+        "thobela": 3, "ke a leboga": 3, "hle": 2, "bjang": 3,
+        "goreng": 3, "mang": 2, "gape": 2, "aowa": 2,
+        "bjale": 3, "setsebi": 2, "tsebišo": 3, "tšhelete": 2,
+        "ke": 1, "ya": 1, "ba": 1, "eng": 1,
+    },
+}
+
+def detect_language(text):
+    """Weighted scoring. Returns language name or None."""
+    t = " " + text.lower().strip() + " "
+    scores = {}
+    for lang, words in LANG_KEYWORDS.items():
+        score = 0
+        for word, weight in words.items():
+            if f" {word} " in t or t.startswith(f" {word} ") or f" {word}" == t[-len(word)-1:]:
+                score += weight
+        if score > 0:
+            scores[lang] = score
+    if not scores:
+        return None
+    best = max(scores, key=scores.get)
+    # Require minimum confidence
+    return best if scores[best] >= 2 else None
 
 def _strip_greetings(text):
     """Remove leading greeting words so 'hi, how are you' becomes 'how are you'."""
@@ -195,31 +260,38 @@ def _strip_greetings(text):
 
 def _fast_reply(question, language="English"):
     q = question.strip()
-    stripped = _strip_greetings(q)
-    if stripped != q.strip().lower() and stripped:
-        # Leading greeting detected — check if the remainder is small talk
-        if SMALL_TALK_RE.match(stripped):
-            return "I am well. Thank you for asking. How may I assist you with your documents?"
-        if not stripped:
-            return _greeting(language)
+    # Auto-detect the language from the input
+    detected = detect_language(q)
+    effective = detected or language
+
     if not q:
-        return _greeting(language)
+        return _greeting(effective)
+
+    stripped = _strip_greetings(q)
+
+    # "hi, how are you" -> "how are you"
+    if stripped != q.strip().lower() and stripped:
+        if SMALL_TALK_RE.match(stripped):
+            return _t(effective, "small_talk")
+        if not stripped:
+            return _greeting(effective)
+
+    if GREETING_RE.match(q) or GREETING_RE.match(stripped or q):
+        return _greeting(effective)
     if SMALL_TALK_RE.match(q):
-        return "I am well. Thank you for asking. How may I assist you with your documents?"
-    if GREETING_RE.match(q):
-        return _greeting(language)
+        return _t(effective, "small_talk")
     if THANKS_RE.match(q):
-        return _t(language, "thanks")
+        return _t(effective, "thanks")
     if BYE_RE.match(q):
-        return _t(language, "bye")
+        return _t(effective, "bye")
     if ACK_RE.match(q):
-        return _t(language, "ack")
+        return _t(effective, "ack")
     if ABOUT_RE.search(q):
-        return _t(language, "about")
+        return _t(effective, "about")
     if DISCLAIMER_RE.search(q):
-        return _t(language, "disclaimer")
+        return _t(effective, "disclaimer")
     if len(q) < 3:
-        return _t(language, "short")
+        return _t(effective, "short")
     return None
 
 def _has_documents():
@@ -320,9 +392,13 @@ def ask(question, language="English", use_web_fallback=False):
         }
     context = build_context(chunks) if chunks else ""
 
+    detected_lang = detect_language(question)
+    effective_lang = detected_lang or language
     system = LOCAL_PROMPT
-    if language != "English":
-        system += f"\n\nRespond in {language}. Maintain a formal legal register throughout."
+    if effective_lang != "English":
+        system += f"\n\nRespond in {effective_lang}. Maintain a formal legal register throughout."
+    else:
+        system += "\n\nRespond in the same language the user asked in."
 
     prompt = ChatPromptTemplate.from_messages([("system", system), ("human", "{question}")])
     llm = get_llm()
