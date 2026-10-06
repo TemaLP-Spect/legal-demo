@@ -133,7 +133,7 @@ if "current_chat_id" not in st.session_state:
     st.session_state.chats[cid] = {"title": "New chat", "messages": []}
     st.session_state.current_chat_id = cid
 if "processed_files" not in st.session_state: st.session_state.processed_files = set()
-if "language" not in st.session_state: st.session_state.language = "English"
+if "language" not in st.session_state: "English" = "English"
 
 # ---------- Sidebar ----------
 with st.sidebar:
@@ -145,13 +145,7 @@ with st.sidebar:
         st.session_state.current_chat_id = cid
         st.rerun()
 
-    st.markdown('<div class="sb-heading">Language</div>', unsafe_allow_html=True)
-    st.session_state.language = st.selectbox(
-        "Language",
-        ["English", "Afrikaans", "isiZulu", "isiXhosa", "Sesotho", "Setswana", "Sepedi"],
-        label_visibility="collapsed", key="lang_select")
-
-    st.markdown('<div class="sb-heading">Chats</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sb-heading">Chats</div>', unsafe_allow_html=True)
     for cid in reversed(list(st.session_state.chats.keys())):
         c = st.session_state.chats[cid]
         label = c["title"][:28] if c["title"] != "New chat" else "New chat"
@@ -303,7 +297,7 @@ if question := st.chat_input("Ask a question about your legal documents..."):
 
     try:
         r = requests.post(f"{API_URL}/chat",
-                          json={"question": question, "language": st.session_state.language},
+                          json={"question": question, "language": "English"},
                           timeout=3600)
         ph.empty()
         if r.status_code == 200:
