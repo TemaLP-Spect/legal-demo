@@ -14,7 +14,7 @@ EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 LLM_MODEL = "llama3.1:8b"
 CHROMA_DIR = "./chroma_db"
 COLLECTION_NAME = "legal_documents"
-TOP_K = 4
+TOP_K = 6
 MIN_RELEVANCE = 0.15
 SUMMARIES_FILE = "./summaries.json"
 
@@ -213,7 +213,7 @@ LANG_KEYWORDS = {
         "ke": 1, "ya": 1, "ba": 1, "eng": 1,
     },
     "Sepedi": {
-        "thobela": 3, "ke a leboga": 3, "hle": 2, "bjang": 3,
+        "dumela": 4, "thobela": 3, "ke a leboga": 3, "hle": 2, "bjang": 3,
         "goreng": 3, "mang": 2, "gape": 2, "aowa": 2,
         "bjale": 3, "setsebi": 2, "tsebišo": 3, "tšhelete": 2,
         "ke": 1, "ya": 1, "ba": 1, "eng": 1,
