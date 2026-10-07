@@ -172,6 +172,38 @@ def _fast_reply(question, language="English"):
         return _t("English", "short")
     return None
 
+_JAILBREAK_PATTERNS = [
+    r"ignore\s+(all\s+)?(previous|prior|above|earlier)",
+    r"disregard\s+(all\s+)?(previous|prior|above|rules|instructions)",
+    r"forget\s+(everything|all|your|what)",
+    r"you\s+are\s+now",
+    r"pretend\s+(to\s+be|you)",
+    r"act\s+as\s+(a|an|if|though)",
+    r"dan\s+mode",
+    r"jailbreak",
+    r"developer\s+mode",
+    r"override\s+(your|the)\s+(rules|instructions|prompt)",
+    r"reveal\s+(your|the)\s+(system|initial|hidden)\s+prompt",
+    r"show\s+me\s+(your|the)\s+(system|initial|hidden)\s+prompt",
+    r"print\s+(your|the)\s+(system|initial|hidden)\s+prompt",
+    r"what\s+are\s+your\s+(system|initial)\s+(prompt|instructions)",
+    r"repeat\s+(your|the)\s+instructions",
+    r"tell\s+me\s+a\s+(joke|story|poem|riddle)",
+    r"write\s+(me\s+)?(a|an)\s+(joke|story|poem|song|essay)",
+    r"how\s+(do|can)\s+i\s+(hack|make\s+a\s+bomb|cook\s+meth)",
+    r"base64|rot13",
+]
+_JAILBREAK_RE = re.compile("|".join(_JAILBREAK_PATTERNS), re.IGNORECASE)
+
+
+def _is_jailbreak_attempt(q):
+    """Detect obvious jailbreak / role-override / off-task attempts.
+    Returns True if the input should be refused before the LLM is called."""
+    if not q:
+        return False
+    return bool(_JAILBREAK_RE.search(q))
+
+
 def _is_likely_legal_question(q):
     """Return True if the question plausibly relates to legal documents.
     Conservative — when in doubt, allow (let LLM decide). Only refuse
@@ -194,6 +226,9 @@ def _is_likely_legal_question(q):
         "how do i hack", "how to hack", "how to make a bomb",
         "translate this", "write a poem", "write a story", "write code",
         "who won", "who is the president", "what is the weather",
+        "tell me a joke", "tell me a story", "tell me a poem",
+        "make me laugh", "say something funny", "a joke",
+        "sing me", "write me a song", "write a poem",
     ]
     for sig in OFF_TOPIC:
         if sig in q_lower:
@@ -217,6 +252,58 @@ def _is_likely_legal_question(q):
 
     # No strong signal either way — allow through
     return True
+
+
+import secrets as _secrets
+
+# Canary: a random token the LLM must echo back. If missing → injection detected.
+_CANARY = "CANARY_" + _secrets.token_hex(4).upper()
+
+# Suspicious patterns commonly found in prompt-injection attempts
+_INJECTION_PATTERNS = [
+    r"ignore\s+(all\s+)?(previous|prior|above)\s+instructions?",
+    r"disregard\s+(all\s+)?(previous|prior|above)",
+    r"forget\s+(everything|all|your\s+instructions)",
+    r"you\s+are\s+now\s+(a|an|the)",
+    r"pretend\s+(to\s+be|you\s+are)",
+    r"act\s+as\s+(a|an|if)",
+    r"system\s*:\s*",
+    r"<\|im_start\|>|<\|im_end\|>",
+    r"\[INST\]|\[/INST\]",
+    r"###\s*(instruction|system|human|user)",
+    r"new\s+instructions?:",
+    r"override\s+(your\s+)?(rules|instructions|prompt)",
+    r"jailbreak",
+    r"dan\s+mode",
+]
+_INJECTION_RE = re.compile("|".join(_INJECTION_PATTERNS), re.IGNORECASE)
+
+
+def _sanitize_chunk(text):
+    """Remove or neutralize prompt-injection patterns from retrieved chunks.
+    Returns (cleaned_text, was_suspicious: bool)."""
+    if not text:
+        return text, False
+    found = _INJECTION_RE.search(text)
+    if not found:
+        return text, False
+    # Neutralize: replace the suspicious segment with a placeholder
+    cleaned = _INJECTION_RE.sub("[redacted]", text)
+    return cleaned, True
+
+
+def _build_safe_context(chunks):
+    """Build context from chunks with injection patterns stripped."""
+    parts = []
+    flagged = 0
+    for i, c in enumerate(chunks, 1):
+        src = c.metadata.get("source", "unknown")
+        pg = c.metadata.get("page", "?")
+        cleaned, suspicious = _sanitize_chunk(c.page_content)
+        if suspicious:
+            flagged += 1
+        parts.append(f"[Source {i}: {src}, page {pg}]\n{cleaned}")
+    return "\n\n".join(parts), flagged
 
 
 def _has_documents():
@@ -304,6 +391,16 @@ def ask(question, language="English", use_web_fallback=False):
     if fast is not None:
         return {"answer": fast, "sources": [], "used_web": False, "web_sources": []}
 
+    # ---- HARD gate: refuse obvious jailbreak / role-override attempts ----
+    if _is_jailbreak_attempt(question):
+        print("[security] jailbreak pattern detected — refusing before LLM")
+        result = {
+            "answer": "I cannot follow that instruction. I only answer questions about the legal documents you have uploaded.",
+            "sources": [], "used_web": False, "web_sources": [],
+        }
+        _RESPONSE_CACHE[cache_key] = result
+        return result
+
     # ---- Topic gate: refuse obvious off-topic questions before LLM ----
     if not _is_likely_legal_question(question):
         result = {
@@ -324,7 +421,12 @@ def ask(question, language="English", use_web_fallback=False):
     # ---- Retrieve documents ----
     vs = get_vector_store()
     chunks = vs.similarity_search(question, k=TOP_K)
-    context = build_context(chunks) if chunks else "(no documents loaded)"
+    if chunks:
+        context, flagged = _build_safe_context(chunks)
+        if flagged > 0:
+            print(f"[security] neutralized {flagged} suspicious chunk(s)")
+    else:
+        context = "(no documents loaded)"
 
     # ---- Placeholder guard: if top chunk is a template, warn ----
     top_chunks = chunks[:2]
@@ -344,8 +446,28 @@ def ask(question, language="English", use_web_fallback=False):
     ])
     llm = get_llm()
     try:
-        response = (prompt | llm).invoke({"context": context, "question": question})
+        response = (prompt | llm).invoke({
+            "context": context,
+            "question": question,
+            "canary": _CANARY,
+        })
         answer = response.content.strip()
+        # Soft canary check — log only, do NOT refuse
+        if _CANARY in answer:
+            answer = answer.replace(_CANARY, "").rstrip()
+        else:
+            print("[security] canary missing (soft warning)")
+
+        # Hard output check — refuse if answer shows signs of successful injection
+        dangerous = [
+            "pwned", "dan mode", "jailbreak", "i am now",
+            "here is my system prompt", "my instructions are",
+            "ignore previous", "no restrictions",
+            "as an ai without", "i have been reprogrammed",
+        ]
+        if any(d in answer.lower() for d in dangerous):
+            print("[security] dangerous output detected — refusing")
+            answer = "I cannot provide that response. It conflicts with my operating rules. Please ask a question about the uploaded documents."
     except Exception as e:
         return {
             "answer": f"The system could not reach the model. Please try again. ({type(e).__name__})",
