@@ -173,6 +173,19 @@ def _fast_reply(question, language="English"):
     return None
 
 _JAILBREAK_PATTERNS = [
+    r"\{\{[^}]*\}\}",                      # {{template}}
+    r"\{[^}]*role[^}]*\}",                    # {"role": ...}
+    r"\{[^}]*system[^}]*\}",                  # {"system": ...}
+    r"\{[^}]*ignore[^}]*\}",                  # {"ignore": ...}
+    r"^\s*assistant\s*:",                     # Fake assistant turn
+    r"^\s*system\s*:",                        # Fake system turn
+    r"^\s*human\s*:",                         # Fake human turn
+    r"^\s*user\s*:",                          # Fake user turn
+    r"i\s+will\s+follow\s+any\s+instruction",
+    r"<\s*system\s*>",                        # <system>
+    r"<\s*/?system\s*>",
+    r"<\s*instruction",
+    r"<\s*prompt",
     r"version\s+\d+\s*(with|without)",
     r"confirm\s+and\s+answer",
     r"i\s+confirm\s+as",
@@ -339,7 +352,15 @@ def get_vector_store():
     return Chroma(collection_name=COLLECTION_NAME, embedding_function=embeddings, persist_directory=CHROMA_DIR)
 
 def get_llm():
-    return ChatOllama(model=LLM_MODEL, base_url=OLLAMA_URL, temperature=0.15)
+    return ChatOllama(
+        model=LLM_MODEL,
+        base_url=OLLAMA_URL,
+        temperature=0.15,
+        num_predict=500,
+        num_ctx=4096,
+        repeat_penalty=1.15,
+        repeat_last_n=128,
+    )
 
 def build_context(chunks):
     parts = []
