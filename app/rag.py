@@ -173,6 +173,26 @@ def _fast_reply(question, language="English"):
     return None
 
 _JAILBREAK_PATTERNS = [
+    r"version\s+\d+\s*(with|without)",
+    r"confirm\s+and\s+answer",
+    r"i\s+confirm\s+as",
+    r"no\s+restrictions",
+    r"without\s+restrictions",
+    r"for\s+(academic|educational|research)\s+(purposes|paper|study)",
+    r"how\s+to\s+bypass",
+    r"bypass\s+(ai\s+)?(safety|filters|restrictions)",
+    r"thought\s+experiment",
+    r"in\s+theory\s+only",
+    r"hypothetically\s+(if|speaking)",
+    r"repeat\s+your\s+(initial|first|opening)",
+    r"first\s+line\s+of\s+your",
+    r"verbatim",
+    r"extract\s+and\s+print",
+    r"hidden\s+text",
+    r"what\s+is\s+your\s+(system|initial)\s+(message|prompt)",
+    r"(^|\s)(system|hidden|initial)\s+(message|prompt|instruction)",
+    r"leak\s+your",
+    r"dump\s+(all|your)\s+(prior|previous|messages)",
     r"ignore\s+(all\s+)?(previous|prior|above|earlier)",
     r"disregard\s+(all\s+)?(previous|prior|above|rules|instructions)",
     r"forget\s+(everything|all|your|what)",
@@ -452,6 +472,12 @@ def ask(question, language="English", use_web_fallback=False):
             "canary": _CANARY,
         })
         answer = response.content.strip()
+        import re as _re
+        answer = _re.sub(r"MODE [AB][:\-]?\s*", "", answer, flags=_re.IGNORECASE)
+        # Handle empty or too-short responses
+        if not answer or len(answer.strip()) < 15:
+            answer = "I cannot provide that response. It conflicts with my operating rules. Please ask a question about the uploaded documents."
+
         # Soft canary check — log only, do NOT refuse
         if _CANARY in answer:
             answer = answer.replace(_CANARY, "").rstrip()
@@ -464,6 +490,9 @@ def ask(question, language="English", use_web_fallback=False):
             "here is my system prompt", "my instructions are",
             "ignore previous", "no restrictions",
             "as an ai without", "i have been reprogrammed",
+            "i confirm and answer as", "i confirm as version",
+            "mode a", "mode b", "with all restrictions removed",
+            "i am an ai language model that does not have restrictions",
         ]
         if any(d in answer.lower() for d in dangerous):
             print("[security] dangerous output detected — refusing")
