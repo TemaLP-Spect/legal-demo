@@ -66,7 +66,13 @@ Text:
 Professional summary:"""
 
 SMALL_TALK_RE = re.compile(
-    r"^(how\s*(are|is)\s*(you|u|it|things|everything)|"
+    r"^(how\s*(are|is)\s*(you|u|it|things|everything)(\s+(doing|today|going|these\s+days))?|"
+    r"how'?s\s*it\s*going|how\s*you\s*doing|"
+    r"what'?s\s*up|wassup|watsup|"
+    r"you\s*(good|ok|okay|alright)|"
+    r"hope\s*you'?re\s*(good|well)|"
+    r"how\s*have\s*you\s*been|"
+    r"long\s*time\s*no\s*see)[\s!.,?]*$", re.I)\s*(you|u|it|things|everything)|"
     r"how'?s\s*it\s*going|what'?s\s*up|wassup|watsup|"
     r"how\s*you\s*doing|you\s*(good|ok|okay|alright)|"
     r"hope\s*you'?re\s*(good|well)|"
