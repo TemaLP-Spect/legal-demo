@@ -158,8 +158,6 @@ def _fast_reply(question, language="English"):
 
     if GREETING_RE.match(q) or GREETING_RE.match(stripped or q):
         return _greeting()
-    if SMALL_TALK_RE.match(q):
-        return _t("English", "small_talk")
     if THANKS_RE.match(q):
         return _t("English", "thanks")
     if BYE_RE.match(q):
@@ -173,6 +171,53 @@ def _fast_reply(question, language="English"):
     if len(q) < 3:
         return _t("English", "short")
     return None
+
+def _is_likely_legal_question(q):
+    """Return True if the question plausibly relates to legal documents.
+    Conservative — when in doubt, allow (let LLM decide). Only refuse
+    obvious off-topic questions."""
+    q_lower = q.lower().strip()
+
+    # Short conversational inputs — allow through
+    if len(q_lower) < 15:
+        return True
+
+    # Hard off-topic signals
+    OFF_TOPIC = [
+        "quantum", "physics", "chemistry", "biology", "astronomy",
+        "space", "planet", "star", "galaxy", "atom", "molecule",
+        "football", "soccer", "rugby", "cricket", "basketball",
+        "movie", "film", "song", "music", "celebrity", "actor",
+        "recipe", "cook", "bake", "food", "restaurant",
+        "weather", "temperature", "forecast",
+        "capital of", "president of", "population of",
+        "how do i hack", "how to hack", "how to make a bomb",
+        "translate this", "write a poem", "write a story", "write code",
+        "who won", "who is the president", "what is the weather",
+    ]
+    for sig in OFF_TOPIC:
+        if sig in q_lower:
+            return False
+
+    # Legal-document signals — always allow
+    LEGAL = [
+        "clause", "lease", "agreement", "contract", "party", "parties",
+        "lessor", "lessee", "tenant", "landlord", "deposit", "rental",
+        "notice", "termination", "eviction", "breach", "indemnity",
+        "liability", "warranty", "obligation", "rights", "remedy",
+        "case", "court", "judgment", "holding", "statute", "section",
+        "matter", "dispute", "damages", "compensation", "transfer",
+        "property", "premises", "inventory", "schedule", "annex",
+        "the document", "the file", "the text", "the agreement",
+        "the lease", "the contract", "the case", "uploaded",
+    ]
+    for sig in LEGAL:
+        if sig in q_lower:
+            return True
+
+    # No strong signal either way — allow through
+    return True
+
 
 def _has_documents():
     try:
@@ -252,17 +297,27 @@ def _build_sources(chunks):
     return sources
 
 def ask(question, language="English", use_web_fallback=False):
+    cache_key = question.strip().lower()
+
     # ---- Fast path: exact short social inputs ----
     fast = _fast_reply(question, language)
     if fast is not None:
         return {"answer": fast, "sources": [], "used_web": False, "web_sources": []}
+
+    # ---- Topic gate: refuse obvious off-topic questions before LLM ----
+    if not _is_likely_legal_question(question):
+        result = {
+            "answer": "That question is outside the scope of the documents loaded in this system. I can only answer questions about the legal documents you have uploaded.",
+            "sources": [], "used_web": False, "web_sources": [],
+        }
+        _RESPONSE_CACHE[cache_key] = result
+        return result
 
     # ---- Empty check ----
     if not question.strip():
         return {"answer": _greeting(), "sources": [], "used_web": False, "web_sources": []}
 
     # ---- Cache ----
-    cache_key = question.strip().lower()
     if cache_key in _RESPONSE_CACHE:
         return _RESPONSE_CACHE[cache_key]
 
